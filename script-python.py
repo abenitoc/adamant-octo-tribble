@@ -29,35 +29,42 @@ def relocateXML(name):
 	#Base Cases
 	if not os.path.exists('machines'):
 		os.makedirs('machines')
-	if not os.file.exists('machines/cdps-practica.qcow2')	
+
+	if not os.file.exists('machines/cdps-practica.qcow2'):
 		shutil.call("bunzip /mnt/vnx/repo/cdps-vm-base3.bcow2.tar.gz .")
 	
 	
 	shutil.copy2('/mnt/vnx/repo/plantilla-vm-p3.xml','machines/'+ name + '.xml')
 
 def openVMs():
-	
+	print "n"	
 
 ############### AUXILIAR FUNCTIONS #############
 
 ################ MAIN FUNCTIONS ##############
 
-def create():
-	relocateXML('1')	
+def create(machines_number):
+	for 1..machines_number
+	relocateXML()	
 
 ################ MAIN FUNCTIONS ##############
 
 ################ PROGRAM DEFINITION ################
-start_time = time.time()
 
-param1 = sys.argv[1]
+start_time = time.time()
+if len(sys.argv) > 1:
+	param1 = sys.argv[1]
+else:
+	param1 = 'notcorrect'
 
 #parse $1 python
 if param1 == 'create':
-
-	create()
-	print 'Machines succesfully created'	
+	user_input = input("How many VMs do you want to create (1 by default): ")
+	if user_input >= 1 and user_input <= 5:
+		create()
+		print 'Machines succesfully created'	
 elif param1 == 'start': 
+	print 'start'
 elif param1 == 'stop':
 	print 'stop'
 elif param1 == 'destroy':
