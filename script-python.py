@@ -96,6 +96,14 @@ def configureNetVMs(number):
 			os.makedirs("../mnt/" + name)
 
 		call(["sudo","vnx_mount_rootfs","-s","-r", name + ".qcow2", "../mnt/" + name])
+		filechange = open("../mnt/" + name + "/etc/network/interfaces","r")
+		change = filechange.read()
+		cambios = change.replace("dhcp", "static")
+		filechange.close()
+
+		filechange = open("../mnt/" + name + "/etc/network/interfaces","w")
+		filechange.write(cambios)
+		filechange.close()
 		ip = ""
 		ip1 = ""
 		ip2 = ""
@@ -119,28 +127,28 @@ def configureNetVMs(number):
 			ip2 = ""
 		if name == "s1" or name == "s2" or name == "s3" or name == "s4" or name == "s5":	
 			call(["sudo", "chmod", "+w", "/etc/network/interfaces"])
-			file = open("../mnt/" + name + "etc/network/interfaces","a")
+			file = open("../mnt/" + name + "/etc/network/interfaces","a")
 			arguments = ["address " + ip + "\n", "netmask 255.255.255.0\n", "gateway 10.0.2.1\n"]
 			file.writelines(arguments)
 			file.close()
 		if name == "lb":
-			file = open("../mnt/" + name + "etc/network/interfaces","a")
 			call(["sudo", "chmod", "+w", "/etc/network/interfaces"])
-			arguments = ["address " + ip1 + "\n", "netmask 255.255.255.0\n", "\n\n","auto eth1\n" "iface eth1 inet static\n", "address" + ip2 + "\n", "netmask 255.255.255.0"]
+			file = open("../mnt/" + name + "/etc/network/interfaces","a")
+			arguments = ["address " + ip1 + "\n", "netmask 255.255.255.0\n", "\n\n","auto eth1\n" "iface eth1 inet static\n", "address " + ip2 + "\n", "netmask 255.255.255.0"]
 			file.writelines(arguments)
 			file.close()
 		if name == "c1":
 			call(["sudo", "chmod", "+w", "/etc/network/interfaces"])
-			file = open("../mnt/" + name + "etc/network/interfaces","a")
+			file = open("../mnt/" + name + "/etc/network/interfaces","a")
 			arguments = ["address " + ip + "\n", "netmask 255.255.255.0\n", "gateway 10.0.2.1\n"]
 			file.writelines(arguments)
 			file.close()
 
-		file_name = open("../mnt/" + name + "etc/hostname", "w")
+		file_name = open("../mnt/" + name + "/etc/hostname", "w")
 		file_name.write(name)
 		file_name.close()
 
-		call(["sudo", "vnx_mount_rootfs", "-u", "../mnt" + name])
+		call(["sudo", "vnx_mount_rootfs", "-u", "../mnt/" + name])
 
 def openVMs():
 	print "n"	
@@ -181,8 +189,15 @@ elif param1 == 'start':
 	start()
 	print 'Machines started'	
 elif param1 == 'stop':
-	print 'stop'
+	call(["sudo", "virsh", "stop", "s1"])
+	call(["sudo", "virsh", "stop", "s2"])
+	call(["sudo", "virsh", "stop", "s3"])
+	call(["sudo", "virsh", "stop", "s4"])
+	call(["sudo", "virsh", "stop", "s5"])
+	call(["sudo", "virsh", "stop", "c1"])
+	call(["sudo", "virsh", "stop", "lb"])
 elif param1 == 'destroy':
+	clean_the_pool()
 	call(["sudo", "virsh", "destroy", "s1"])
 	call(["sudo", "virsh", "destroy", "s2"])
 	call(["sudo", "virsh", "destroy", "s3"])
