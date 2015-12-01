@@ -2,10 +2,12 @@
 
 from lxml import etree
 from subprocess import call
+from os import listdir
 import shutil
 import os
 import sys
 import time
+import glob
 from copy import deepcopy
 
 ############## CONTEXT VARIABLES ###############
@@ -16,6 +18,22 @@ VMs = ['lb', 'c1', 's1', 's2', 's3','s4','s5']
 
 ############### AUXILIAR FUNCTIONS #############
 
+def clean_the_pool():
+	pool = listdir(os.getcwd())
+	pool.remove('cdps-vm-base-p3.qcow2.bz2')
+	pool.remove('cdps-vm-base-p3.qcow2')
+	pool.remove('plantilla-vm-p3.xml')
+
+	for dirt in pool:
+		os.remove(dirt)
+
+def seek_and_power_machines():
+	os.chdir('machines')
+	found_unpowered_machines = glob.glob('*.xml')
+	found_unpowered_machines.remove('plantilla-vm-p3.xml')
+	for machine in found_unpowered_machines:
+		call(["sudo", "virsh", "create", machine])
+
 def modifyXML(xml_path, vm_path, name):	
 	xml_struct = etree.parse(xml_path)
 	
@@ -25,7 +43,7 @@ def modifyXML(xml_path, vm_path, name):
 	machinename.text = name
 	
 	disk_source = root_node.find('devices').find('disk').find('source')
-	disk_source.set('file', "/mnt/tmp/" + name + "/" + name + ".qcow2")
+	disk_source.set('file', os.getcwd() + "/" + name  + ".qcow2")
 
 	bridge_source =  root_node.find('devices').find('interface').find('source')	
 	if name == "c1":
@@ -57,6 +75,8 @@ def relocateFiles():
 	
 	if not os.path.exists('machines/plantilla-vm-p3.xml'):
 		shutil.copy2('/mnt/vnx/repo/plantilla-vm-p3.xml', os.getcwd())
+	
+	clean_the_pool()
 
 def createVMs(number):
 	#create images and all xmls and modififies
@@ -69,6 +89,42 @@ def createVMs(number):
 	call(["sudo", "brctl", "addbr", "LAN2"])
 	call(["sudo", "ifconfig", "LAN1", "up"])
 	call(["sudo", "ifconfig", "LAN2","up"])	
+
+def configureNetVMs(number):
+	for name in VMs:
+		call(["sudo","vns_mounts_roof","-s","-r", name + ".qcow2", "mnt"])
+		
+		if name == "s1":
+			ip = "10.0.2.11"
+		elif name == "s2":
+			ip = "10.0.2.12"
+		elif name == "s3":
+			ip = "10.0.2.13"
+		elif name == "s4":
+			ip = "10.0.2.14"
+		elif name == "s5":
+			ip = "10.0.2.15"
+		elif name == "c1":
+			ip = "10.0.1.3"
+		elif name == "lb":
+			ip1 = "10.0.1.1"
+			ip2 = "10.0.2.1"
+		else:
+			ip1 = ""
+			ip2 = ""
+		if name == "s1" or "s2" or "s3" or "s4" or "s5":	
+			file = open("/etc/network/interfaces","a")
+			arguments = ["address " + ip + "\n", "netmask 255.255.255.0\n", "gateway 10.0.2.1"]
+			file.writelines(arguments)
+		if name == "lb"
+			file = open("/etc/network/interfaces","a")
+			arguments = ["address " + ip + "\n", "netmask 255.255.255.0\n", "gateway 10.0.1.1", "\n","auto eth1\n" "iface eth1 inet static\n", "address 10.0.2.1\n", "netmask 255.255.255.0"]
+			file.writelines(arguments)
+		if name == "c1"
+			file = open("/etc/network/interfaces","a")
+			arguments = ["address " + ip + "\n", "netmask 255.255.255.0\n", "gateway 10.0.2.1"]
+			file.writelines(arguments)
+		call(["sudo", "vns_umount_root", "-u", "mnt"])]
 
 def openVMs():
 	print "n"	
@@ -84,8 +140,10 @@ def create(machines_number):
 		del VMs[-1]
 	
 	createVMs(len(VMs))
-			
+	configureNetVMs(len(VMs))	
+		
 def start():
+	seek_and_power_machines()
 	os.system("HOME=/mnt/tmp sudo virt-manager")			
 ################ MAIN FUNCTIONS ##############
 
@@ -111,6 +169,9 @@ elif param1 == 'stop':
 elif param1 == 'destroy':
 	os.chdir('machines')
 	call(['rm', 'lb*', 'c1*', 's*'], shell=True)
+elif param1 == 'test'
+	os.chdir('machines')
+
 else:
 	print 'Parametros no reconocidos' 
 
