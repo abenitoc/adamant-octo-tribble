@@ -184,6 +184,8 @@ if param1 == 'create':
 	user_input = input("How many VMs do you want to create (1 by default): ")
 	if user_input >= 1 and user_input <= 5:
 		create(user_input)
+	else
+		user_input = 1
 		print 'Machines created'	
 elif param1 == 'start': 
 	start()
