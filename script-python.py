@@ -92,8 +92,13 @@ def createVMs(number):
 
 def configureNetVMs(number):
 	for name in VMs:
-		call(["sudo","vns_mounts_roof","-s","-r", name + ".qcow2", "mnt"])
-		
+		if not os.path.exists("../mnt/" + name):
+			os.makedirs("../mnt/" + name)
+
+		call(["sudo","vnx_mount_rootfs","-s","-r", name + ".qcow2", "../mnt/" + name])
+		ip = ""
+		ip1 = ""
+		ip2 = ""
 		if name == "s1":
 			ip = "10.0.2.11"
 		elif name == "s2":
@@ -112,19 +117,30 @@ def configureNetVMs(number):
 		else:
 			ip1 = ""
 			ip2 = ""
-		if name == "s1" or "s2" or "s3" or "s4" or "s5":	
-			file = open("/etc/network/interfaces","a")
-			arguments = ["address " + ip + "\n", "netmask 255.255.255.0\n", "gateway 10.0.2.1"]
+		if name == "s1" or name == "s2" or name == "s3" or name == "s4" or name == "s5":	
+			call(["sudo", "chmod", "+w", "/etc/network/interfaces"])
+			file = open("../mnt/" + name + "etc/network/interfaces","a")
+			arguments = ["address " + ip + "\n", "netmask 255.255.255.0\n", "gateway 10.0.2.1\n"]
 			file.writelines(arguments)
-		if name == "lb"
-			file = open("/etc/network/interfaces","a")
-			arguments = ["address " + ip + "\n", "netmask 255.255.255.0\n", "gateway 10.0.1.1", "\n","auto eth1\n" "iface eth1 inet static\n", "address 10.0.2.1\n", "netmask 255.255.255.0"]
+			file.close()
+		if name == "lb":
+			file = open("../mnt/" + name + "etc/network/interfaces","a")
+			call(["sudo", "chmod", "+w", "/etc/network/interfaces"])
+			arguments = ["address " + ip1 + "\n", "netmask 255.255.255.0\n", "\n\n","auto eth1\n" "iface eth1 inet static\n", "address" + ip2 + "\n", "netmask 255.255.255.0"]
 			file.writelines(arguments)
-		if name == "c1"
-			file = open("/etc/network/interfaces","a")
-			arguments = ["address " + ip + "\n", "netmask 255.255.255.0\n", "gateway 10.0.2.1"]
+			file.close()
+		if name == "c1":
+			call(["sudo", "chmod", "+w", "/etc/network/interfaces"])
+			file = open("../mnt/" + name + "etc/network/interfaces","a")
+			arguments = ["address " + ip + "\n", "netmask 255.255.255.0\n", "gateway 10.0.2.1\n"]
 			file.writelines(arguments)
-		call(["sudo", "vns_umount_root", "-u", "mnt"])]
+			file.close()
+
+		file_name = open("../mnt/" + name + "etc/hostname", "w")
+		file_name.write(name)
+		file_name.close()
+
+		call(["sudo", "vnx_mount_rootfs", "-u", "../mnt" + name])
 
 def openVMs():
 	print "n"	
@@ -167,9 +183,16 @@ elif param1 == 'start':
 elif param1 == 'stop':
 	print 'stop'
 elif param1 == 'destroy':
-	os.chdir('machines')
-	call(['rm', 'lb*', 'c1*', 's*'], shell=True)
-elif param1 == 'test'
+	call(["sudo", "virsh", "destroy", "s1"])
+	call(["sudo", "virsh", "destroy", "s2"])
+	call(["sudo", "virsh", "destroy", "s3"])
+	call(["sudo", "virsh", "destroy", "s4"])
+	call(["sudo", "virsh", "destroy", "s5"])
+	call(["sudo", "virsh", "destroy", "c1"])
+	call(["sudo", "virsh", "destroy", "lb"])
+	#os.chdir('machines')
+	#call(['rm', 'lb*', 'c1*', 's*'], shell=True)
+elif param1 == 'test':
 	os.chdir('machines')
 
 else:
