@@ -47,15 +47,15 @@ def modifyXML(xml_path, vm_path, name):
 
 	bridge_source =  root_node.find('devices').find('interface').find('source')	
 	if name == "c1":
-		bridge_source.set('bridge', "LAN2")
-	else:
 		bridge_source.set('bridge', "LAN1")
+	else:
+		bridge_source.set('bridge', "LAN2")
 	
 	if name == "lb":
 		devices = root_node.find('devices')
 		interface = devices.find('interface')
 		interface2 = deepcopy(interface)
-		interface2.find('source').set('bridge',"LAN2")
+		interface2.find('source').set('bridge',"LAN1")
 		devices.append(interface2)
 	
 	with open(xml_path, 'w') as fout:
@@ -90,6 +90,10 @@ def createVMs(number):
 	call(["sudo", "ifconfig", "LAN1", "up"])
 	call(["sudo", "ifconfig", "LAN2","up"])	
 
+	os.system("sudo ifconfig LAN1 10.0.1.3/24")
+	os.system("sudo ip route add 10.0.0.0/16 via 10.0.1.1")
+
+
 def configureNetVMs(number):
 	for name in VMs:
 		if not os.path.exists("../mnt/" + name):
@@ -118,7 +122,7 @@ def configureNetVMs(number):
 		elif name == "s5":
 			ip = "10.0.2.15"
 		elif name == "c1":
-			ip = "10.0.1.3"
+			ip = "10.0.1.2"
 		elif name == "lb":
 			ip1 = "10.0.1.1"
 			ip2 = "10.0.2.1"
@@ -134,9 +138,20 @@ def configureNetVMs(number):
 		if name == "lb":
 			call(["sudo", "chmod", "+w", "/etc/network/interfaces"])
 			file = open("../mnt/" + name + "/etc/network/interfaces","a")
-			arguments = ["address " + ip1 + "\n", "netmask 255.255.255.0\n", "\n\n","auto eth1\n" "iface eth1 inet static\n", "address " + ip2 + "\n", "netmask 255.255.255.0"]
+			arguments = ["address " + ip2 + "\n", "netmask 255.255.255.0\n", "\n\n","auto eth1\n" "iface eth1 inet static\n", "address " + ip1 + "\n", "netmask 255.255.255.0"]
 			file.writelines(arguments)
 			file.close()
+
+			file = open("../mnt/" + name + "/etc/sysctl.conf", "r")
+			openfile = file.read()
+			file.close()
+
+			changes = openfile.replace("#net.ipv4.ip_forward=1", "net.ipv4.ip_forward=1")
+
+			file = open("../mnt/" + name + "/etc/sysctl.conf", "w")
+			file.write(changes)
+			file.close()
+
 		if name == "c1":
 			call(["sudo", "chmod", "+w", "/etc/network/interfaces"])
 			file = open("../mnt/" + name + "/etc/network/interfaces","a")
@@ -150,8 +165,14 @@ def configureNetVMs(number):
 
 		call(["sudo", "vnx_mount_rootfs", "-u", "../mnt/" + name])
 
-def openVMs():
-	print "n"	
+def stop():
+	call(["sudo", "virsh", "shutdown", "s1"])
+	call(["sudo", "virsh", "shutdown", "s2"])
+	call(["sudo", "virsh", "shutdown", "s3"])
+	call(["sudo", "virsh", "shutdown", "s4"])
+	call(["sudo", "virsh", "shutdown", "s5"])
+	call(["sudo", "virsh", "shutdown", "c1"])
+	call(["sudo", "virsh", "shutdown", "lb"])
 
 ############### AUXILIAR FUNCTIONS #############
 
@@ -184,21 +205,17 @@ if param1 == 'create':
 	user_input = input("How many VMs do you want to create (1 by default): ")
 	if user_input >= 1 and user_input <= 5:
 		create(user_input)
-	else
+	else:
 		user_input = 1
+		create(user_input)
 		print 'Machines created'	
 elif param1 == 'start': 
 	start()
 	print 'Machines started'	
 elif param1 == 'stop':
-	call(["sudo", "virsh", "stop", "s1"])
-	call(["sudo", "virsh", "stop", "s2"])
-	call(["sudo", "virsh", "stop", "s3"])
-	call(["sudo", "virsh", "stop", "s4"])
-	call(["sudo", "virsh", "stop", "s5"])
-	call(["sudo", "virsh", "stop", "c1"])
-	call(["sudo", "virsh", "stop", "lb"])
+	stop()
 elif param1 == 'destroy':
+	os.chdir('machines')
 	clean_the_pool()
 	call(["sudo", "virsh", "destroy", "s1"])
 	call(["sudo", "virsh", "destroy", "s2"])
@@ -209,8 +226,8 @@ elif param1 == 'destroy':
 	call(["sudo", "virsh", "destroy", "lb"])
 	#os.chdir('machines')
 	#call(['rm', 'lb*', 'c1*', 's*'], shell=True)
-elif param1 == 'test':
-	os.chdir('machines')
+elif param1 == 'monitor':
+	call(["sudo", "virsh", "monitor"])
 
 else:
 	print 'Parametros no reconocidos' 
