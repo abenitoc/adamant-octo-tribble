@@ -2,13 +2,18 @@
 
 from lxml import etree
 from subprocess import call
-from os import listdir
-import shutil
+from subprocess import check_output
 import os
+from os import listdir
+import psutil
+import shutil
 import sys
 import time
 import glob
 from copy import deepcopy
+from sys import stdout
+from time import sleep
+
 
 ############## CONTEXT VARIABLES ###############
 
@@ -33,6 +38,10 @@ def seek_and_power_machines():
 	found_unpowered_machines.remove('plantilla-vm-p3.xml')
 	for machine in found_unpowered_machines:
 		call(["sudo", "virsh", "create", machine])
+	if len(found_unpowered_machines) > 0:
+		print 'Machines started'
+	else:
+		print 'No Machines Found'
 
 def modifyXML(xml_path, vm_path, name):	
 	xml_struct = etree.parse(xml_path)
@@ -165,14 +174,7 @@ def configureNetVMs(number):
 
 		call(["sudo", "vnx_mount_rootfs", "-u", "../mnt/" + name])
 
-def stop():
-	call(["sudo", "virsh", "shutdown", "s1"])
-	call(["sudo", "virsh", "shutdown", "s2"])
-	call(["sudo", "virsh", "shutdown", "s3"])
-	call(["sudo", "virsh", "shutdown", "s4"])
-	call(["sudo", "virsh", "shutdown", "s5"])
-	call(["sudo", "virsh", "shutdown", "c1"])
-	call(["sudo", "virsh", "shutdown", "lb"])
+
 
 ############### AUXILIAR FUNCTIONS #############
 
@@ -189,7 +191,43 @@ def create(machines_number):
 		
 def start():
 	seek_and_power_machines()
-	os.system("HOME=/mnt/tmp sudo virt-manager")			
+	os.system("HOME=/mnt/tmp sudo virt-manager")	
+
+def stop():
+	call(["sudo", "virsh", "shutdown", "s1"])
+	call(["sudo", "virsh", "shutdown", "s2"])
+	call(["sudo", "virsh", "shutdown", "s3"])
+	call(["sudo", "virsh", "shutdown", "s4"])
+	call(["sudo", "virsh", "shutdown", "s5"])
+	call(["sudo", "virsh", "shutdown", "c1"])
+	call(["sudo", "virsh", "shutdown", "lb"])
+
+def monitor():
+	try:
+		pids = map(int,check_output(["pidof","qemu-system-x86_64"]).split())
+		number_pids = len(pids)
+
+		hash_pids = {}
+
+		for pid in pids:
+			p = psutil.Process(pid)
+			hash_pids[pid] = p.cmdline[3]
+
+		while True:
+			nice_string = ""
+			for pid in pids:
+				nice_pid = psutil.Process(pid)
+				nice_string += hash_pids[pid] +" --> "+ str(nice_pid.get_cpu_percent(interval=0.2)) + "% |"
+			
+			stdout.write("\r%s" % nice_string + " This is percentage per cpu, so the sum can be over 100%")
+			
+			stdout.flush()
+			sleep(1)
+	except KeyboardInterrupt:
+		print "\n"
+		sys.exit(0)
+
+
 ################ MAIN FUNCTIONS ##############
 
 ################ PROGRAM DEFINITION ################
@@ -202,35 +240,43 @@ else:
 
 #parse $1 python
 if param1 == 'create':
-	user_input = input("How many VMs do you want to create (1 by default): ")
-	if user_input >= 1 and user_input <= 5:
-		create(user_input)
-	else:
-		user_input = 1
-		create(user_input)
-		print 'Machines created'	
+	try:
+		user_input = input("How many VMs do you want to create (1 by default): ")
+		if user_input >= 1 and user_input <= 5:
+			create(user_input)
+		else:
+			user_input = 1
+			create(user_input)
+			print 'Machines created'
+	except:
+		print "There was an error"	
 elif param1 == 'start': 
-	start()
-	print 'Machines started'	
+	try:
+		start()	
+	except:
+		print "There was an error"
 elif param1 == 'stop':
 	stop()
 elif param1 == 'destroy':
-	os.chdir('machines')
-	clean_the_pool()
-	call(["sudo", "virsh", "destroy", "s1"])
-	call(["sudo", "virsh", "destroy", "s2"])
-	call(["sudo", "virsh", "destroy", "s3"])
-	call(["sudo", "virsh", "destroy", "s4"])
-	call(["sudo", "virsh", "destroy", "s5"])
-	call(["sudo", "virsh", "destroy", "c1"])
-	call(["sudo", "virsh", "destroy", "lb"])
-	#os.chdir('machines')
-	#call(['rm', 'lb*', 'c1*', 's*'], shell=True)
-elif param1 == 'monitor':
-	call(["sudo", "virsh", "monitor"])
+	try:
+		os.chdir('machines')
+		clean_the_pool()
+		call(["sudo", "virsh", "destroy", "s1"])
+		call(["sudo", "virsh", "destroy", "s2"])
+		call(["sudo", "virsh", "destroy", "s3"])
+		call(["sudo", "virsh", "destroy", "s4"])
+		call(["sudo", "virsh", "destroy", "s5"])
+		call(["sudo", "virsh", "destroy", "c1"])
+		call(["sudo", "virsh", "destroy", "lb"])
+	except:
+		print "There was an error"
 
+elif param1 == 'monitor':
+	monitor()
+elif param1 == 'help':
+	print "You can use 'create' argument to create virtual machines\n'start' argument to begin VMs execution\n'stop' to stop VMs\n'destroy' if you want to eliminate MVs and archives related to it"
 else:
-	print 'Parametros no reconocidos' 
+	print 'Use argument help to know which commands are allowed' 
 
 print("Finished in %s seconds" % (time.time() - start_time))
 ################ PROGRAM DEFINITION ################
